@@ -58,3 +58,4 @@ Useful resources to check out:
 
  * https://book.kubebuilder.io/introduction.html
  * https://cloud.redhat.com/blog/kubernetes-operators-best-practices
+ * https://developers.redhat.com/blog/2019/10/07/write-a-simple-kubernetes-operator-in-java-using-the-fabric8-kubernetes-client#
