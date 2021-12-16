@@ -1,9 +1,11 @@
-# camunda-cloud-operator
+# Camunda Cloud Operator
 Christmas Hack Day Project (2021): Build an Kubernetes Operator to deploy Camunda Cloud services
 
 ## Idea
 
-Building an open-source Camunda Cloud operator which can be used and extended by the community to deploy and run Camunda Cloud services, like Zeebe, Operate, Tasklist, Optimize etc. For each service we build/add an extra controller and CRD which is bundled in the operator.
+We currently have open-source helm charts in order to deploy Camunda Cloud services, https://github.com/camunda-community-hub/camunda-cloud-helm. But to support further use cases, like deploying and maintaining lot of Zeebe clusters and doing this in a simple way (via CRD's) we need an Kubernetes Operator.
+
+So the idea is to build an open-source Camunda Cloud operator, which can be used and extended by the community to deploy and run Camunda Cloud services, like Zeebe, Operate, Tasklist, Optimize etc. For each service we want to build/add an extra controller and CRD which is bundled in the operator.
 
 ## Goals
 
