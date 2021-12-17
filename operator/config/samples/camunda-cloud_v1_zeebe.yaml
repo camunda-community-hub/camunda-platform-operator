@@ -3,4 +3,51 @@ kind: Zeebe
 metadata:
   name: zeebe-sample
 spec:
-  # TODO(user): Add fields here
+  broker:
+    partitions:
+      count: 1
+      replication: 1
+    backend:
+      imageName: camunda/zeebe
+      imageTag: 1.2.6
+      replicas: 1
+      resources:
+        limits:
+          cpu: 5
+          memory: 12Gi
+        requests:
+          cpu: 5
+          memory: 12Gi
+      overrideEnv:
+        - name: ZEEBE_BROKER_CLUSTER_CLUSTERNAME
+          value: zell-test-zeebe
+        - name: ZEEBE_LOG_LEVEL
+          value: "info"
+        - name: ZEEBE_BROKER_THREADS_CPUTHREADCOUNT
+          value: "4"
+        - name: ZEEBE_BROKER_THREADS_IOTHREADCOUNT
+          value: "4"
+        - name: K8S_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: JAVA_TOOL_OPTIONS
+          value: "-XX:MaxRAMPercentage=25.0 -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/local/zeebe/data -XX:ErrorFile=/usr/local/zeebe/data/zeebe_error%p.log -Xlog:gc*:file=/usr/local/zeebe/data/gc.log:time:filecount=7,filesize=8M"
+        - name: ZEEBE_LOG_APPENDER
+          value: Stackdriver
+        - name: ZEEBE_LOG_STACKDRIVER_SERVICENAME
+          value: zeebe-broker
+        - name: ZEEBE_LOG_STACKDRIVER_SERVICEVERSION
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: ZEEBE_BROKER_EXECUTION_METRICS_EXPORTER_ENABLED
+          value: "true"
+        - name: ATOMIX_LOG_LEVEL
+          value: INFO
+        - name: ZEEBE_LOG_LEVEL
+          value: DEBUG
+        - name: ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK
+          value: "0.8"
+        - name: ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK
+          value: "0.9"

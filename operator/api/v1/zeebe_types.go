@@ -49,7 +49,7 @@ type PartitionsSpec struct {
 type GatewaySpec struct {
 	// per default false, which means we use an embedded gateway
 	// +optional
-	Standalone *bool `json:"standalone,omitempty"`
+	Standalone bool `json:"standalone,omitempty"`
 	// Optional, only necessary if the gateway is standalone
 	// +optional
 	Backend BackendSpec `json:"backend,omitempty"`

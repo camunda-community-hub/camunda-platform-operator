@@ -90,7 +90,7 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 				MatchLabels: labels,
 			},
 			Replicas: backendSpec.Replicas,
-			Template: createPodSpecTemplate(labels, backendSpec),
+			Template: createPodSpecTemplate(labels, zeebe.Spec),
 			VolumeClaimTemplates: []v12.PersistentVolumeClaim{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -133,7 +133,32 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{}, nil
 }
 
-func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.BackendSpec) v12.PodTemplateSpec {
+func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.ZeebeSpec) v12.PodTemplateSpec {
+
+	backendSpec := zeebeSpec.Broker.Backend
+	envs := []v12.EnvVar{
+		{
+			Name:  "ZEEBE_BROKER_GATEWAY_ENABLE",
+			Value: fmt.Sprintf("%t", !zeebeSpec.Gateway.Standalone),
+		},
+		{
+			Name:  "ZEEBE_BROKER_CLUSTER_PARTITIONSCOUNT",
+			Value: fmt.Sprintf("%d", *zeebeSpec.Broker.Partitions.Count),
+		},
+		{
+			Name:  "ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR",
+			Value: fmt.Sprintf("%d", *zeebeSpec.Broker.Partitions.Replication),
+		},
+		{
+			Name:  "ZEEBE_BROKER_CLUSTER_CLUSTERSIZE",
+			Value: fmt.Sprintf("%d", *backendSpec.Replicas),
+		},
+	}
+
+	for _, env := range backendSpec.OverrideEnv {
+		envs = append(envs, env)
+	}
+
 	return v12.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: labels,
@@ -144,7 +169,7 @@ func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.
 					Name:            "Zeebe",
 					Image:           fmt.Sprintf("%s:%s", backendSpec.ImageName, backendSpec.ImageTag),
 					ImagePullPolicy: v12.PullAlways,
-					Env:             backendSpec.OverrideEnv,
+					Env:             envs,
 					Ports: []v12.ContainerPort{
 						{
 							ContainerPort: 9600,
