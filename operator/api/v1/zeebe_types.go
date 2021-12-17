@@ -35,7 +35,7 @@ type ZeebeSpec struct {
 
 type BrokerSpec struct {
 	Partitions PartitionsSpec `json:"partitions,omitempty"`
-	Backend BackendSpec `json:"backend,omitempty"`
+	Backend    BackendSpec    `json:"backend,omitempty"`
 }
 
 type PartitionsSpec struct {
@@ -56,7 +56,7 @@ type GatewaySpec struct {
 }
 
 type BackendSpec struct {
-    // Repository and name of the container image to use
+	// Repository and name of the container image to use
 	// +optional
 	ImageName string `json:"imageName,omitempty"`
 	// Tag the container image to use. Tags matching /snapshot/i will use ImagePullPolicy Always
