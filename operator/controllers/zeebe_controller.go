@@ -76,8 +76,20 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		"app.kubernetes.io/component":  "broker",
 	}
 
-	storageClassName := "ssd"
+	// TODO: create configmap with startup script
+	//brokerConfigMap := &v12.ConfigMap{
+	//	ObjectMeta: metav1.ObjectMeta{
+	//	 	Name: "zeebe-configmap",
+	//	},
+	//	Data: map[string]string{
+	//		"startup.sh": "" +
+	//			"" +
+	//			"" +
+	//			"",
+	//	},
+	//}
 
+	storageClassName := "ssd"
 	backendSpec := zeebe.Spec.Broker.Backend
 	brokerStatefulSet := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -149,6 +161,10 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 			Name:  "ZEEBE_BROKER_CLUSTER_REPLICATIONFACTOR",
 			Value: fmt.Sprintf("%d", *zeebeSpec.Broker.Partitions.Replication),
 		},
+		{ // TODO SUPPORT BIGGER CLUSTER
+			Name:  "ZEEBE_BROKER_CLUSTER_NODEID",
+			Value: fmt.Sprintf("%d", 0),
+		},
 		{
 			Name:  "ZEEBE_BROKER_CLUSTER_CLUSTERSIZE",
 			Value: fmt.Sprintf("%d", *backendSpec.Replicas),
@@ -166,7 +182,7 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 		Spec: v12.PodSpec{
 			Containers: []v12.Container{
 				{
-					Name:            "Zeebe",
+					Name:            "zeebe",
 					Image:           fmt.Sprintf("%s:%s", backendSpec.ImageName, backendSpec.ImageTag),
 					ImagePullPolicy: v12.PullAlways,
 					Env:             envs,
