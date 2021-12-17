@@ -215,16 +215,17 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 					},
 					Resources: backendSpec.Resources,
 					VolumeMounts: []v12.VolumeMount{
-						{
-							Name:      "config",
-							MountPath: " /usr/local/zeebe/config/application.yaml",
-							SubPath:   "application.yaml",
-						},
-						{
-							Name:      "config",
-							MountPath: "/usr/local/bin/startup.sh",
-							SubPath:   "startup.sh",
-						},
+						// TODO add config map
+						//{
+						//	Name:      "config",
+						//	MountPath: " /usr/local/zeebe/config/application.yaml",
+						//	SubPath:   "application.yaml",
+						//},
+						//{
+						//	Name:      "config",
+						//	MountPath: "/usr/local/bin/startup.sh",
+						//	SubPath:   "startup.sh",
+						//},
 						{
 							Name:      "data",
 							MountPath: "/usr/local/zeebe/data",
@@ -232,19 +233,20 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 					},
 				},
 			},
-			Volumes: []v12.Volume{
-				{
-					Name: "config",
-					VolumeSource: v12.VolumeSource{
-						ConfigMap: &v12.ConfigMapVolumeSource{
-							LocalObjectReference: v12.LocalObjectReference{
-								Name: "zeebe-configmap",
-							},
-							DefaultMode: getIntPointer(0744),
-						},
-					},
-				},
-			},
+			// TODO add config map
+			//Volumes: []v12.Volume{
+			//	{
+			//		Name: "config",
+			//		VolumeSource: v12.VolumeSource{
+			//			ConfigMap: &v12.ConfigMapVolumeSource{
+			//				LocalObjectReference: v12.LocalObjectReference{
+			//					Name: "zeebe-configmap",
+			//				},
+			//				DefaultMode: getIntPointer(0744),
+			//			},
+			//		},
+			//	},
+			//},
 		},
 	}
 }
