@@ -18,10 +18,14 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	v1 "k8s.io/api/apps/v1"
+	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -53,11 +57,11 @@ type ZeebeReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	var zeebe camundacloudv1.Zeebe
 	if err := r.Get(ctx, req.NamespacedName, &zeebe); err != nil {
-		log.Error(err, "unable to fetch Statefulset")
+		logger.Error(err, "unable to fetch Statefulset")
 
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
@@ -65,27 +69,147 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	labels := map[string]string{
+		"app.kubernetes.io/managed-by": "Operator",
+		"app.kubernetes.io/name": "zeebe-cluster-helm",
+		"app.kubernetes.io/app": "zeebe",
+		"app.kubernetes.io/component": "broker",
+	}
+
+	storageClassName := "ssd"
+
+	backendSpec := zeebe.Spec.Broker.Backend
 	brokerStatefulSet := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      make(map[string]string),
-			Annotations: make(map[string]string),
+			Labels: labels,
 			Name:        "Zeebe",
 			Namespace:   req.Namespace,
+		},
+		Spec: v1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Replicas: backendSpec.Replicas,
+			Template: createPodSpecTemplate(labels, backendSpec),
+			VolumeClaimTemplates: []v12.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "data",
+					},
+					Spec: v12.PersistentVolumeClaimSpec{
+						AccessModes: []v12.PersistentVolumeAccessMode{
+							v12.ReadWriteOnce,
+						},
+						StorageClassName: &storageClassName,
+						Resources: v12.ResourceRequirements{
+							Requests: v12.ResourceList{
+								"storage": *resource.NewQuantity(128 * 1024 * 1024, resource.DecimalExponent),
+							},
+						} ,
+					},
+				},
+			},
 		},
 	}
 
 	if err := ctrl.SetControllerReference(&zeebe, brokerStatefulSet, r.Scheme); err != nil {
 		if err != nil {
-			log.Error(err, "unable to construct statefulset from zeebe CRD")
+			logger.Error(err, "unable to construct statefulset from zeebe CRD")
 			// don't bother requeuing until we get a change to the spec
 			return ctrl.Result{}, nil
 		}
 	}
 
+    if err := r.Create(ctx, brokerStatefulSet); err != nil {
+        logger.Error(err, "unable to create Statefulset for Zeebe", "job", brokerStatefulSet)
+        return ctrl.Result{}, err
+    }
+
+    logger.V(1).Info("created Job for CronJob run", "job", job)
+
 	// We return an empty result and no error,
 	// which indicates to controller-runtime that we’ve successfully reconciled
 	// this object and don’t need to try again until there’s some changes.
 	return ctrl.Result{}, nil
+}
+
+func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.BackendSpec) (v12.PodTemplateSpec) {
+	return v12.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: labels,
+		},
+		Spec: v12.PodSpec{
+			Containers: []v12.Container{
+				{
+					Name: "Zeebe",
+					Image: fmt.Sprintf("%s:%s",backendSpec.ImageName, backendSpec.ImageTag),
+					ImagePullPolicy: v12.PullAlways,
+					Env: backendSpec.OverrideEnv,
+					Ports: []v12.ContainerPort{
+						{
+							ContainerPort: 9600,
+							Name: "http",
+						},
+						{
+							ContainerPort: 26501,
+							Name: "command",
+						},
+						{
+							ContainerPort: 26502,
+							Name: "internal",
+						},
+					},
+					ReadinessProbe: &v12.Probe{
+						Handler: v12.Handler{
+							HTTPGet: &v12.HTTPGetAction{
+								Path: "/ready",
+								Port: intstr.IntOrString{
+									IntVal: 9600,
+								},
+							},
+						},
+						PeriodSeconds: 10,
+						SuccessThreshold: 1,
+						TimeoutSeconds: 1,
+					},
+					Resources: backendSpec.Resources,
+					VolumeMounts: []v12.VolumeMount{
+						{
+							Name: "config",
+							MountPath: " /usr/local/zeebe/config/application.yaml",
+							SubPath: "application.yaml",
+						},
+						{
+							Name: "config",
+							MountPath: "/usr/local/bin/startup.sh",
+							SubPath: "startup.sh",
+						},
+						{
+							Name: "data",
+							MountPath:  "/usr/local/zeebe/data",
+						},
+					},
+				},
+			},
+			Volumes: []v12.Volume{
+				{
+					Name: "config",
+					VolumeSource: v12.VolumeSource{
+						ConfigMap: &v12.ConfigMapVolumeSource{
+							LocalObjectReference : v12.LocalObjectReference{
+								Name: "zeebe-configmap",
+							},
+							DefaultMode: getIntPointer(0744),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func getIntPointer(val int32) *int32 {
+	return &val
 }
 
 // SetupWithManager sets up the controller with the Manager.
