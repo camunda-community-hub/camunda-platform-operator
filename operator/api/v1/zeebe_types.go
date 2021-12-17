@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,11 +26,52 @@ import (
 
 // ZeebeSpec defines the desired state of Zeebe
 type ZeebeSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Broker configurations
+	Broker BrokerSpec `json:"broker,omitempty"`
 
-	// Foo is an example field of Zeebe. Edit zeebe_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Gateway configurations
+	Gateway GatewaySpec `json:"gateway,omitempty"`
+}
+
+type BrokerSpec struct {
+	Partitions PartitionsSpec `json:"partitions,omitempty"`
+	Backend BackendSpec `json:"backend,omitempty"`
+}
+
+type PartitionsSpec struct {
+	// how many partitions the cluster should have
+	Count *int8 `json:"count,omitempty"`
+
+	// how often a partition should be replicated
+	Replication *int `json:"replication,omitempty"`
+}
+
+type GatewaySpec struct {
+	// per default false, which means we use an embedded gateway
+	// +optional
+	Standalone *bool `json:"standalone,omitempty"`
+	// Optional, only necessary if the gateway is standalone
+	// +optional
+	Backend BackendSpec `json:"backend,omitempty"`
+}
+
+type BackendSpec struct {
+    // Repository and name of the container image to use
+	// +optional
+	ImageName string `json:"imageName,omitempty"`
+	// Tag the container image to use. Tags matching /snapshot/i will use ImagePullPolicy Always
+	// +optional
+	ImageTag string `json:"imageTag,omitempty"`
+
+	// Resources which should be used by the component
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Any var set here will override those provided to the container.
+	// Behaviour if duplicate vars are provided _here_ is undefined.
+	OverrideEnv []v1.EnvVar `json:"overrideEnv,omitempty"`
+
+	// The replication count for the component
+	Replicas *int8 `json:"replicas,omitempty"`
 }
 
 // ZeebeStatus defines the observed state of Zeebe
