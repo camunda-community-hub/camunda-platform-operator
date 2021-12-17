@@ -71,9 +71,9 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	labels := map[string]string{
 		"app.kubernetes.io/managed-by": "Operator",
-		"app.kubernetes.io/name": "zeebe-cluster-helm",
-		"app.kubernetes.io/app": "zeebe",
-		"app.kubernetes.io/component": "broker",
+		"app.kubernetes.io/name":       "zeebe-cluster-helm",
+		"app.kubernetes.io/app":        "zeebe",
+		"app.kubernetes.io/component":  "broker",
 	}
 
 	storageClassName := "ssd"
@@ -81,9 +81,9 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	backendSpec := zeebe.Spec.Broker.Backend
 	brokerStatefulSet := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: labels,
-			Name:        "Zeebe",
-			Namespace:   req.Namespace,
+			Labels:    labels,
+			Name:      "Zeebe",
+			Namespace: req.Namespace,
 		},
 		Spec: v1.StatefulSetSpec{
 			Selector: &metav1.LabelSelector{
@@ -103,9 +103,9 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 						StorageClassName: &storageClassName,
 						Resources: v12.ResourceRequirements{
 							Requests: v12.ResourceList{
-								"storage": *resource.NewQuantity(128 * 1024 * 1024, resource.DecimalExponent),
+								"storage": *resource.NewQuantity(128*1024*1024, resource.DecimalExponent),
 							},
-						} ,
+						},
 					},
 				},
 			},
@@ -120,12 +120,12 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-    if err := r.Create(ctx, brokerStatefulSet); err != nil {
-        logger.Error(err, "unable to create Statefulset for Zeebe", "job", brokerStatefulSet)
-        return ctrl.Result{}, err
-    }
+	if err := r.Create(ctx, brokerStatefulSet); err != nil {
+		logger.Error(err, "unable to create statefulset for Zeebe", "statefulset", brokerStatefulSet)
+		return ctrl.Result{}, err
+	}
 
-    logger.V(1).Info("created Job for CronJob run", "job", job)
+	logger.V(1).Info("created statefulset for Zeebe", "statefulset", brokerStatefulSet)
 
 	// We return an empty result and no error,
 	// which indicates to controller-runtime that we’ve successfully reconciled
@@ -133,7 +133,7 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{}, nil
 }
 
-func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.BackendSpec) (v12.PodTemplateSpec) {
+func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.BackendSpec) v12.PodTemplateSpec {
 	return v12.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: labels,
@@ -141,22 +141,22 @@ func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.
 		Spec: v12.PodSpec{
 			Containers: []v12.Container{
 				{
-					Name: "Zeebe",
-					Image: fmt.Sprintf("%s:%s",backendSpec.ImageName, backendSpec.ImageTag),
+					Name:            "Zeebe",
+					Image:           fmt.Sprintf("%s:%s", backendSpec.ImageName, backendSpec.ImageTag),
 					ImagePullPolicy: v12.PullAlways,
-					Env: backendSpec.OverrideEnv,
+					Env:             backendSpec.OverrideEnv,
 					Ports: []v12.ContainerPort{
 						{
 							ContainerPort: 9600,
-							Name: "http",
+							Name:          "http",
 						},
 						{
 							ContainerPort: 26501,
-							Name: "command",
+							Name:          "command",
 						},
 						{
 							ContainerPort: 26502,
-							Name: "internal",
+							Name:          "internal",
 						},
 					},
 					ReadinessProbe: &v12.Probe{
@@ -168,25 +168,25 @@ func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.
 								},
 							},
 						},
-						PeriodSeconds: 10,
+						PeriodSeconds:    10,
 						SuccessThreshold: 1,
-						TimeoutSeconds: 1,
+						TimeoutSeconds:   1,
 					},
 					Resources: backendSpec.Resources,
 					VolumeMounts: []v12.VolumeMount{
 						{
-							Name: "config",
+							Name:      "config",
 							MountPath: " /usr/local/zeebe/config/application.yaml",
-							SubPath: "application.yaml",
+							SubPath:   "application.yaml",
 						},
 						{
-							Name: "config",
+							Name:      "config",
 							MountPath: "/usr/local/bin/startup.sh",
-							SubPath: "startup.sh",
+							SubPath:   "startup.sh",
 						},
 						{
-							Name: "data",
-							MountPath:  "/usr/local/zeebe/data",
+							Name:      "data",
+							MountPath: "/usr/local/zeebe/data",
 						},
 					},
 				},
@@ -196,7 +196,7 @@ func createPodSpecTemplate(labels map[string]string, backendSpec camundacloudv1.
 					Name: "config",
 					VolumeSource: v12.VolumeSource{
 						ConfigMap: &v12.ConfigMapVolumeSource{
-							LocalObjectReference : v12.LocalObjectReference{
+							LocalObjectReference: v12.LocalObjectReference{
 								Name: "zeebe-configmap",
 							},
 							DefaultMode: getIntPointer(0744),
