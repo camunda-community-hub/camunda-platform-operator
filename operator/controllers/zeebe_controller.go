@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 
+	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +39,10 @@ type ZeebeReconciler struct {
 //+kubebuilder:rbac:groups=camunda-cloud.io.camunda,resources=zeebes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=camunda-cloud.io.camunda,resources=zeebes/finalizers,verbs=update
 
+// CRUD apps: deployments and statefulsets
+// +kubebuilder:rbac:groups=apps,resources=statefulsets;deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=statefulsets/status;deployments/status,verbs=get
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
@@ -47,10 +53,38 @@ type ZeebeReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var zeebe camundacloudv1.Zeebe
+	if err := r.Get(ctx, req.NamespacedName, &zeebe); err != nil {
+		log.Error(err, "unable to fetch Statefulset")
 
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	brokerStatefulSet := &v1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
+			Name:        "Zeebe",
+			Namespace:   req.Namespace,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(&zeebe, brokerStatefulSet, r.Scheme); err != nil {
+		if err != nil {
+			log.Error(err, "unable to construct statefulset from zeebe CRD")
+			// don't bother requeuing until we get a change to the spec
+			return ctrl.Result{}, nil
+		}
+	}
+
+	// We return an empty result and no error,
+	// which indicates to controller-runtime that we’ve successfully reconciled
+	// this object and don’t need to try again until there’s some changes.
 	return ctrl.Result{}, nil
 }
 
