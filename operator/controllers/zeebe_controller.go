@@ -61,7 +61,7 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	var zeebe camundacloudv1.Zeebe
 	if err := r.Get(ctx, req.NamespacedName, &zeebe); err != nil {
-		logger.Error(err, "unable to fetch Statefulset")
+		logger.Error(err, "unable to fetch Zeebe resource")
 
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
