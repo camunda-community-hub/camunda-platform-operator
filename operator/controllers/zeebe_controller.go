@@ -82,7 +82,7 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	brokerStatefulSet := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:    labels,
-			Name:      "Zeebe",
+			Name:      "zeebe",
 			Namespace: req.Namespace,
 		},
 		Spec: v1.StatefulSetSpec{
