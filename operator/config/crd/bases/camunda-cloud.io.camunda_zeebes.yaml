@@ -167,6 +167,7 @@ spec:
                         type: array
                       replicas:
                         description: The replication count for the component
+                        format: int32
                         type: integer
                       resources:
                         description: Resources which should be used by the component
@@ -200,6 +201,7 @@ spec:
                     properties:
                       count:
                         description: how many partitions the cluster should have
+                        format: int32
                         type: integer
                       replication:
                         description: how often a partition should be replicated
@@ -338,6 +340,7 @@ spec:
                         type: array
                       replicas:
                         description: The replication count for the component
+                        format: int32
                         type: integer
                       resources:
                         description: Resources which should be used by the component
