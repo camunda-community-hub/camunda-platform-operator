@@ -1,0 +1,24 @@
+# permissions for end users to edit zeebes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: zeebe-editor-role
+rules:
+- apiGroups:
+  - camunda-cloud.io.camunda
+  resources:
+  - zeebes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - camunda-cloud.io.camunda
+  resources:
+  - zeebes/status
+  verbs:
+  - get

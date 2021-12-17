@@ -1,0 +1,6 @@
+apiVersion: camunda-cloud.io.camunda/v1
+kind: Zeebe
+metadata:
+  name: zeebe-sample
+spec:
+  # TODO(user): Add fields here

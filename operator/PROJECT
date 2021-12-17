@@ -1,0 +1,16 @@
+domain: io.camunda
+layout:
+- go.kubebuilder.io/v3
+projectName: operator
+repo: io.camnda/operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: io.camunda
+  group: camunda-cloud
+  kind: Zeebe
+  path: io.camnda/operator/api/v1
+  version: v1
+version: "3"
