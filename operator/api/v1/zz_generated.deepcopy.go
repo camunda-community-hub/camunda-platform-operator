@@ -39,7 +39,7 @@ func (in *BackendSpec) DeepCopyInto(out *BackendSpec) {
 	}
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
-		*out = new(int8)
+		*out = new(int32)
 		**out = **in
 	}
 }
@@ -97,7 +97,7 @@ func (in *PartitionsSpec) DeepCopyInto(out *PartitionsSpec) {
 	*out = *in
 	if in.Count != nil {
 		in, out := &in.Count, &out.Count
-		*out = new(int8)
+		*out = new(int32)
 		**out = **in
 	}
 	if in.Replication != nil {

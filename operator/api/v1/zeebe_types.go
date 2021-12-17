@@ -40,7 +40,7 @@ type BrokerSpec struct {
 
 type PartitionsSpec struct {
 	// how many partitions the cluster should have
-	Count *int8 `json:"count,omitempty"`
+	Count *int32 `json:"count,omitempty"`
 
 	// how often a partition should be replicated
 	Replication *int `json:"replication,omitempty"`
@@ -71,7 +71,7 @@ type BackendSpec struct {
 	OverrideEnv []v1.EnvVar `json:"overrideEnv,omitempty"`
 
 	// The replication count for the component
-	Replicas *int8 `json:"replicas,omitempty"`
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // ZeebeStatus defines the observed state of Zeebe
