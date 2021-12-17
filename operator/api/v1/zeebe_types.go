@@ -78,6 +78,9 @@ type BackendSpec struct {
 type ZeebeStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// PodName of the active node.
+	Active string `json:"active"`
 }
 
 //+kubebuilder:object:root=true
