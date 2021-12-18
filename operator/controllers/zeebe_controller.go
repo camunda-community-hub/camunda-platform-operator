@@ -39,6 +39,8 @@ type ZeebeReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+const statefulset_name = "zeebe"
+
 //+kubebuilder:rbac:groups=camunda-cloud.io.camunda,resources=zeebes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=camunda-cloud.io.camunda,resources=zeebes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=camunda-cloud.io.camunda,resources=zeebes/finalizers,verbs=update
@@ -71,9 +73,10 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	labels := map[string]string{
 		"app.kubernetes.io/managed-by": "Operator",
-		"app.kubernetes.io/name":       "zeebe-cluster-helm",
-		"app.kubernetes.io/app":        "zeebe",
+		"app.kubernetes.io/name":       "zeebe-cluster",
+		"app.kubernetes.io/app":        statefulset_name,
 		"app.kubernetes.io/component":  "broker",
+		"app":                          statefulset_name,
 	}
 
 	// TODO: create configmap with startup script
@@ -89,12 +92,57 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	//	},
 	//}
 
+	brokerService := &v12.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: labels,
+			Name:   statefulset_name,
+		},
+		Spec: v12.ServiceSpec{
+			ClusterIP:                v12.ClusterIPNone,
+			PublishNotReadyAddresses: true,
+			Type:                     v12.ServiceTypeClusterIP,
+			Ports: []v12.ServicePort{
+				{
+					Port:     9600,
+					Protocol: v12.ProtocolTCP,
+					Name:     "http",
+				},
+				{
+					Port:     26502,
+					Protocol: v12.ProtocolTCP,
+					Name:     "internal",
+				},
+				{
+					Port:     26501,
+					Protocol: v12.ProtocolTCP,
+					Name:     "command",
+				},
+			},
+			Selector: labels,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(&zeebe, brokerService, r.Scheme); err != nil {
+		if err != nil {
+			logger.Error(err, "unable to construct service from zeebe CRD")
+			// don't bother requeuing until we get a change to the spec
+			return ctrl.Result{}, nil
+		}
+	}
+
+	if err := r.Create(ctx, brokerService); err != nil {
+		logger.Error(err, "unable to create service for Zeebe", "service", brokerService)
+		return ctrl.Result{}, err
+	}
+
+	logger.V(1).Info("created service for Zeebe", "service", brokerService)
+
 	storageClassName := "ssd"
 	backendSpec := zeebe.Spec.Broker.Backend
 	brokerStatefulSet := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:    labels,
-			Name:      "zeebe",
+			Name:      statefulset_name,
 			Namespace: req.Namespace,
 		},
 		Spec: v1.StatefulSetSpec{
@@ -182,7 +230,7 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 		Spec: v12.PodSpec{
 			Containers: []v12.Container{
 				{
-					Name:            "zeebe",
+					Name:            statefulset_name,
 					Image:           fmt.Sprintf("%s:%s", backendSpec.ImageName, backendSpec.ImageTag),
 					ImagePullPolicy: v12.PullAlways,
 					Env:             envs,
