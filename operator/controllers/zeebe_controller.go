@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -92,6 +93,81 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	//	},
 	//}
 
+	brokerService := r.createBrokerService(labels)
+
+	if err := ctrl.SetControllerReference(&zeebe, brokerService, r.Scheme); err != nil {
+		logger.Error(err, "unable to construct service from zeebe CRD")
+		// don't bother requeuing until we get a change to the spec
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.Create(ctx, brokerService); err != nil {
+		logger.Error(err, "unable to create service for Zeebe", "service", brokerService)
+		return ctrl.Result{}, err
+	}
+
+	logger.V(1).Info("created service for Zeebe", "service", brokerService)
+
+	brokerStatefulSet := r.createBrokerStatefulset(zeebe, labels, req)
+
+	if err := ctrl.SetControllerReference(&zeebe, brokerStatefulSet, r.Scheme); err != nil {
+		logger.Error(err, "unable to construct statefulset from zeebe CRD")
+		// don't bother requeuing until we get a change to the spec
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.Create(ctx, brokerStatefulSet); err != nil {
+		logger.Error(err, "unable to create statefulset for Zeebe", "statefulset", brokerStatefulSet)
+		return ctrl.Result{}, err
+	}
+
+	logger.V(1).Info("created statefulset for Zeebe", "statefulset", brokerStatefulSet)
+
+	// We return an empty result and no error,
+	// which indicates to controller-runtime that we’ve successfully reconciled
+	// this object and don’t need to try again until there’s some changes.
+	return ctrl.Result{}, nil
+}
+
+func (r *ZeebeReconciler) createBrokerStatefulset(zeebe camundacloudv1.Zeebe, labels map[string]string, req ctrl.Request) *v1.StatefulSet {
+	storageClassName := "ssd"
+	backendSpec := zeebe.Spec.Broker.Backend
+	brokerStatefulSet := &v1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:    labels,
+			Name:      statefulset_name,
+			Namespace: req.Namespace,
+		},
+		Spec: v1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: labels,
+			},
+			Replicas: backendSpec.Replicas,
+			Template: createPodSpecTemplate(labels, zeebe.Spec, req.Namespace),
+			VolumeClaimTemplates: []v12.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "data",
+					},
+					Spec: v12.PersistentVolumeClaimSpec{
+						AccessModes: []v12.PersistentVolumeAccessMode{
+							v12.ReadWriteOnce,
+						},
+						StorageClassName: &storageClassName,
+						Resources: v12.ResourceRequirements{
+							Requests: v12.ResourceList{
+								"storage": *resource.NewQuantity(128*1024*1024, resource.DecimalExponent),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return brokerStatefulSet
+}
+
+func (r *ZeebeReconciler) createBrokerService(labels map[string]string) *v12.Service {
 	brokerService := &v12.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: labels,
@@ -121,75 +197,18 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			Selector: labels,
 		},
 	}
-
-	if err := ctrl.SetControllerReference(&zeebe, brokerService, r.Scheme); err != nil {
-		logger.Error(err, "unable to construct service from zeebe CRD")
-		// don't bother requeuing until we get a change to the spec
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Create(ctx, brokerService); err != nil {
-		logger.Error(err, "unable to create service for Zeebe", "service", brokerService)
-		return ctrl.Result{}, err
-	}
-
-	logger.V(1).Info("created service for Zeebe", "service", brokerService)
-
-	storageClassName := "ssd"
-	backendSpec := zeebe.Spec.Broker.Backend
-	brokerStatefulSet := &v1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:    labels,
-			Name:      statefulset_name,
-			Namespace: req.Namespace,
-		},
-		Spec: v1.StatefulSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Replicas: backendSpec.Replicas,
-			Template: createPodSpecTemplate(labels, zeebe.Spec),
-			VolumeClaimTemplates: []v12.PersistentVolumeClaim{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "data",
-					},
-					Spec: v12.PersistentVolumeClaimSpec{
-						AccessModes: []v12.PersistentVolumeAccessMode{
-							v12.ReadWriteOnce,
-						},
-						StorageClassName: &storageClassName,
-						Resources: v12.ResourceRequirements{
-							Requests: v12.ResourceList{
-								"storage": *resource.NewQuantity(128*1024*1024, resource.DecimalExponent),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	if err := ctrl.SetControllerReference(&zeebe, brokerStatefulSet, r.Scheme); err != nil {
-		logger.Error(err, "unable to construct statefulset from zeebe CRD")
-		// don't bother requeuing until we get a change to the spec
-		return ctrl.Result{}, nil
-	}
-
-	if err := r.Create(ctx, brokerStatefulSet); err != nil {
-		logger.Error(err, "unable to create statefulset for Zeebe", "statefulset", brokerStatefulSet)
-		return ctrl.Result{}, err
-	}
-
-	logger.V(1).Info("created statefulset for Zeebe", "statefulset", brokerStatefulSet)
-
-	// We return an empty result and no error,
-	// which indicates to controller-runtime that we’ve successfully reconciled
-	// this object and don’t need to try again until there’s some changes.
-	return ctrl.Result{}, nil
+	return brokerService
 }
 
-func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.ZeebeSpec) v12.PodTemplateSpec {
+func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.ZeebeSpec, namespace string) v12.PodTemplateSpec {
+	podAddressFormat := "%s-%d.%s.%s.svc.cluster.local:26502"
+
+	replicas  := *zeebeSpec.Broker.Backend.Replicas
+	podAddresses := make([]string, replicas);
+	var podIndex int32;
+	for podIndex = 0; podIndex < replicas; podIndex++ {
+		podAddresses[podIndex] = fmt.Sprint(podAddressFormat, statefulset_name, podIndex, statefulset_name, namespace);
+	}
 
 	backendSpec := zeebeSpec.Broker.Backend
 	envs := []v12.EnvVar{
@@ -212,6 +231,48 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 		{
 			Name:  "ZEEBE_BROKER_CLUSTER_CLUSTERSIZE",
 			Value: fmt.Sprintf("%d", *backendSpec.Replicas),
+		},
+		{
+			Name:  "K8S_NAME",
+			ValueFrom: &v12.EnvVarSource{
+				FieldRef: &v12.ObjectFieldSelector{
+					APIVersion: "v1",
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name:  "K8S_SERVICE_NAME",
+			Value: statefulset_name,
+		},
+		{
+			Name:  "K8S_NAMESPACE",
+			ValueFrom: &v12.EnvVarSource{
+				FieldRef: &v12.ObjectFieldSelector{
+					APIVersion: "v1",
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
+		{
+			Name:  "ZEEBE_BROKER_NETWORK_ADVERTISEDHOST",
+			Value: "$(K8S_NAME).$(K8S_SERVICE_NAME).$(K8S_NAMESPACE).svc.cluster.local",
+		},
+		{
+			Name:  "ZEEBE_BROKER_CLUSTER_CLUSTERNAME",
+			Value: "$(K8S_NAMESPACE)",
+		},
+		{
+			Name:  "ZEEBE_BROKER_GATEWAY_CLUSTER_HOST",
+			Value: "$(ZEEBE_BROKER_NETWORK_ADVERTISEDHOST)",
+		},
+		{
+			Name:  "ZEEBE_BROKER_GATEWAY_CLUSTER_HOST",
+			Value: "$(ZEEBE_BROKER_NETWORK_ADVERTISEDHOST)",
+		},
+		{
+			Name:  "ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS",
+			Value: strings.Join(podAddresses, ","),
 		},
 	}
 
