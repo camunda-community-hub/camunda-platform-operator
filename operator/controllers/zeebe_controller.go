@@ -203,11 +203,11 @@ func (r *ZeebeReconciler) createBrokerService(labels map[string]string) *v12.Ser
 func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.ZeebeSpec, namespace string) v12.PodTemplateSpec {
 	podAddressFormat := "%s-%d.%s.%s.svc.cluster.local:26502"
 
-	replicas  := *zeebeSpec.Broker.Backend.Replicas
-	podAddresses := make([]string, replicas);
-	var podIndex int32;
+	replicas := *zeebeSpec.Broker.Backend.Replicas
+	podAddresses := make([]string, replicas)
+	var podIndex int32
 	for podIndex = 0; podIndex < replicas; podIndex++ {
-		podAddresses[podIndex] = fmt.Sprint(podAddressFormat, statefulset_name, podIndex, statefulset_name, namespace);
+		podAddresses[podIndex] = fmt.Sprint(podAddressFormat, statefulset_name, podIndex, statefulset_name, namespace)
 	}
 
 	backendSpec := zeebeSpec.Broker.Backend
@@ -233,11 +233,11 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 			Value: fmt.Sprintf("%d", *backendSpec.Replicas),
 		},
 		{
-			Name:  "K8S_NAME",
+			Name: "K8S_NAME",
 			ValueFrom: &v12.EnvVarSource{
 				FieldRef: &v12.ObjectFieldSelector{
 					APIVersion: "v1",
-					FieldPath: "metadata.name",
+					FieldPath:  "metadata.name",
 				},
 			},
 		},
@@ -246,11 +246,11 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 			Value: statefulset_name,
 		},
 		{
-			Name:  "K8S_NAMESPACE",
+			Name: "K8S_NAMESPACE",
 			ValueFrom: &v12.EnvVarSource{
 				FieldRef: &v12.ObjectFieldSelector{
 					APIVersion: "v1",
-					FieldPath: "metadata.namespace",
+					FieldPath:  "metadata.namespace",
 				},
 			},
 		},
