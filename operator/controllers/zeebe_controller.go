@@ -208,7 +208,7 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 	podAddresses := make([]string, replicas)
 	var podIndex int32
 	for podIndex = 0; podIndex < replicas; podIndex++ {
-		podAddresses[podIndex] = fmt.Sprint(podAddressFormat, statefulset_name, podIndex, statefulset_name, namespace)
+		podAddresses[podIndex] = fmt.Sprintf(podAddressFormat, statefulset_name, podIndex, statefulset_name, namespace)
 	}
 
 	backendSpec := zeebeSpec.Broker.Backend
