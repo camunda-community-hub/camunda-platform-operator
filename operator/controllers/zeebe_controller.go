@@ -268,12 +268,16 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 			Value: "$(ZEEBE_BROKER_NETWORK_ADVERTISEDHOST)",
 		},
 		{
-			Name:  "ZEEBE_BROKER_GATEWAY_CLUSTER_HOST",
-			Value: "$(ZEEBE_BROKER_NETWORK_ADVERTISEDHOST)",
-		},
-		{
 			Name:  "ZEEBE_BROKER_CLUSTER_INITIALCONTACTPOINTS",
 			Value: strings.Join(podAddresses, ","),
+		},
+		{
+			Name:  "ZEEBE_LOG_STACKDRIVER_SERVICENAME",
+			Value: "zeebe",
+		},
+		{
+			Name:  "ZEEBE_LOG_STACKDRIVER_SERVICEVERSION",
+			Value: backendSpec.ImageTag,
 		},
 	}
 
