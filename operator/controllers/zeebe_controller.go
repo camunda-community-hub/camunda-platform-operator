@@ -80,18 +80,33 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		"app":                          statefulset_name,
 	}
 
-	// TODO: create configmap with startup script
-	//brokerConfigMap := &v12.ConfigMap{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//	 	Name: "zeebe-configmap",
-	//	},
-	//	Data: map[string]string{
-	//		"startup.sh": "" +
-	//			"" +
-	//			"" +
-	//			"",
-	//	},
-	//}
+	brokerConfigMap := &v12.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "zeebe-configmap",
+			Labels:    labels,
+			Namespace: req.Namespace,
+		},
+		Data: map[string]string{
+			"startup.sh": "" +
+				"#!/usr/bin/env bash\n" +
+				"set -eux -o pipefail\n" +
+				"export ZEEBE_BROKER_CLUSTER_NODEID=$(echo $K8S_NAME | tr -d \"[:alpha:]-\")\n" +
+				"exec /usr/local/zeebe/bin/broker",
+		},
+	}
+
+	if err := ctrl.SetControllerReference(&zeebe, brokerConfigMap, r.Scheme); err != nil {
+		logger.Error(err, "unable to construct config map from zeebe CRD")
+		// don't bother requeuing until we get a change to the spec
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.Create(ctx, brokerConfigMap); err != nil {
+		logger.Error(err, "unable to create config map for Zeebe", "configmap", brokerConfigMap)
+		return ctrl.Result{}, err
+	}
+
+	logger.V(1).Info("created configmap for Zeebe", "configmap", brokerConfigMap)
 
 	brokerService := r.createBrokerService(labels, req.Namespace)
 
@@ -331,11 +346,11 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 						//	MountPath: " /usr/local/zeebe/config/application.yaml",
 						//	SubPath:   "application.yaml",
 						//},
-						//{
-						//	Name:      "config",
-						//	MountPath: "/usr/local/bin/startup.sh",
-						//	SubPath:   "startup.sh",
-						//},
+						{
+							Name:      "config",
+							MountPath: "/usr/local/bin/startup.sh",
+							SubPath:   "startup.sh",
+						},
 						{
 							Name:      "data",
 							MountPath: "/usr/local/zeebe/data",
@@ -343,20 +358,19 @@ func createPodSpecTemplate(labels map[string]string, zeebeSpec camundacloudv1.Ze
 					},
 				},
 			},
-			// TODO add config map
-			//Volumes: []v12.Volume{
-			//	{
-			//		Name: "config",
-			//		VolumeSource: v12.VolumeSource{
-			//			ConfigMap: &v12.ConfigMapVolumeSource{
-			//				LocalObjectReference: v12.LocalObjectReference{
-			//					Name: "zeebe-configmap",
-			//				},
-			//				DefaultMode: getIntPointer(0744),
-			//			},
-			//		},
-			//	},
-			//},
+			Volumes: []v12.Volume{
+				{
+					Name: "config",
+					VolumeSource: v12.VolumeSource{
+						ConfigMap: &v12.ConfigMapVolumeSource{
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: "zeebe-configmap",
+							},
+							DefaultMode: getIntPointer(0744),
+						},
+					},
+				},
+			},
 		},
 	}
 }
