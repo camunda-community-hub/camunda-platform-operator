@@ -123,11 +123,9 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if err := ctrl.SetControllerReference(&zeebe, brokerService, r.Scheme); err != nil {
-		if err != nil {
-			logger.Error(err, "unable to construct service from zeebe CRD")
-			// don't bother requeuing until we get a change to the spec
-			return ctrl.Result{}, nil
-		}
+		logger.Error(err, "unable to construct service from zeebe CRD")
+		// don't bother requeuing until we get a change to the spec
+		return ctrl.Result{}, nil
 	}
 
 	if err := r.Create(ctx, brokerService); err != nil {
@@ -173,11 +171,9 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if err := ctrl.SetControllerReference(&zeebe, brokerStatefulSet, r.Scheme); err != nil {
-		if err != nil {
-			logger.Error(err, "unable to construct statefulset from zeebe CRD")
-			// don't bother requeuing until we get a change to the spec
-			return ctrl.Result{}, nil
-		}
+		logger.Error(err, "unable to construct statefulset from zeebe CRD")
+		// don't bother requeuing until we get a change to the spec
+		return ctrl.Result{}, nil
 	}
 
 	if err := r.Create(ctx, brokerStatefulSet); err != nil {
