@@ -93,7 +93,7 @@ func (r *ZeebeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	//	},
 	//}
 
-	brokerService := r.createBrokerService(labels)
+	brokerService := r.createBrokerService(labels, req.Namespace)
 
 	if err := ctrl.SetControllerReference(&zeebe, brokerService, r.Scheme); err != nil {
 		logger.Error(err, "unable to construct service from zeebe CRD")
@@ -167,11 +167,12 @@ func (r *ZeebeReconciler) createBrokerStatefulset(zeebe camundacloudv1.Zeebe, la
 	return brokerStatefulSet
 }
 
-func (r *ZeebeReconciler) createBrokerService(labels map[string]string) *v12.Service {
+func (r *ZeebeReconciler) createBrokerService(labels map[string]string, namespace string) *v12.Service {
 	brokerService := &v12.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: labels,
-			Name:   statefulset_name,
+			Labels:    labels,
+			Name:      statefulset_name,
+			Namespace: namespace,
 		},
 		Spec: v12.ServiceSpec{
 			ClusterIP:                v12.ClusterIPNone,
